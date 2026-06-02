@@ -50,6 +50,7 @@ let currentStep = 0;
 let isPlaying = false;
 let playTimer = null;
 let speedMs = 1200;
+let heapMode = 'max'; // 'max' or 'min'
 
 // Cached DOM nodes for the tree and array so we can update in place
 let treeNodes = [];    // { group, circle, text, indexText }
@@ -59,7 +60,14 @@ let arraySepEl = null;
 let cachedArrayLen = 0;
 
 // ===== HeapSort Step Generator =====
-function generateSteps(inputArray) {
+function generateSteps(inputArray, mode) {
+    const isMax = mode === 'max';
+    const heapName = isMax ? 'Max-Heap' : 'Min-Heap';
+    const orderText = isMax ? 'menor a mayor' : 'mayor a menor';
+    const extremeWord = isMax ? 'mayor' : 'menor';
+    const extremeAdj = isMax ? 'más grande' : 'más pequeño';
+    const compWord = isMax ? 'mayor' : 'menor';
+
     const result = [];
     const arr = [...inputArray];
     const n = arr.length;
@@ -73,24 +81,24 @@ function generateSteps(inputArray) {
         sortedCount: 0,
         highlight: [],
         swapping: [],
-        explanation: `Tenemos el arreglo <strong>[${arr.join(', ')}]</strong>. Nuestro objetivo es ordenarlo de menor a mayor usando HeapSort. Primero, necesitamos convertirlo en un <span class="hl-compare">Max-Heap</span>.`,
+        explanation: `Tenemos el arreglo <strong>[${arr.join(', ')}]</strong>. Nuestro objetivo es ordenarlo de <strong>${orderText}</strong> usando HeapSort. Primero, necesitamos convertirlo en un <span class="hl-compare">${heapName}</span>.`,
     });
 
     const lastInternal = Math.floor(n / 2) - 1;
     for (let i = lastInternal; i >= 0; i--) {
-        siftDown(arr, n, i, result, 2, 0);
+        siftDown(arr, n, i, result, 2, 0, mode);
     }
 
     result.push({
         phase: 2,
-        phaseTitle: 'Fase 2 — Max-Heap Construido ✅',
-        phaseDesc: 'El arreglo ahora cumple la propiedad de Max-Heap.',
+        phaseTitle: `Fase 2 — ${heapName} Construido ✅`,
+        phaseDesc: `El arreglo ahora cumple la propiedad de ${heapName}.`,
         icon: '✅',
         array: [...arr],
         sortedCount: 0,
         highlight: [],
         swapping: [],
-        explanation: `¡<span class="hl-done">Max-Heap construido!</span> El arreglo ahora es <strong>[${arr.join(', ')}]</strong>. La raíz <span class="hl-val">${arr[0]}</span> es el elemento más grande. Ahora comenzamos la extracción.`,
+        explanation: `¡<span class="hl-done">${heapName} construido!</span> El arreglo ahora es <strong>[${arr.join(', ')}]</strong>. La raíz <span class="hl-val">${arr[0]}</span> es el elemento ${extremeAdj}. Ahora comenzamos la extracción.`,
     });
 
     for (let size = n - 1; size > 0; size--) {
@@ -128,7 +136,7 @@ function generateSteps(inputArray) {
         });
 
         if (size > 1) {
-            siftDown(arr, size, 0, result, 3, newSortedCount);
+            siftDown(arr, size, 0, result, 3, newSortedCount, mode);
         }
     }
 
@@ -141,17 +149,20 @@ function generateSteps(inputArray) {
         sortedCount: n,
         highlight: Array.from({ length: n }, (_, i) => i),
         swapping: [],
-        explanation: `<span class="hl-done">¡Ordenado!</span> Resultado: <strong>[${arr.join(', ')}]</strong>. HeapSort extrajo el mayor elemento en cada vuelta y lo colocó en su posición correcta. Complejidad: <span class="hl-compare">O(n log n)</span>.`,
+        explanation: `<span class="hl-done">¡Ordenado!</span> Resultado: <strong>[${arr.join(', ')}]</strong> — de <strong>${orderText}</strong>. HeapSort extrajo el ${extremeWord} en cada vuelta y lo colocó en su posición correcta. Complejidad: <span class="hl-compare">O(n log n)</span>.`,
     });
 
     return result;
 }
 
-function siftDown(arr, heapSize, idx, steps, phase, sortedCount) {
+function siftDown(arr, heapSize, idx, steps, phase, sortedCount, mode) {
+    const isMax = mode === 'max';
+    const compWord = isMax ? 'mayor' : 'menor';
+    const compPhrase = isMax ? 'mayor o igual' : 'menor o igual';
     let current = idx;
 
     while (true) {
-        let largest = current;
+        let best = current;
         const left = 2 * current + 1;
         const right = 2 * current + 2;
 
@@ -170,13 +181,18 @@ function siftDown(arr, heapSize, idx, steps, phase, sortedCount) {
             sortedCount,
             highlight: [current, ...children],
             swapping: [],
-            explanation: `Comparamos <span class="hl-val">${arr[current]}</span> (índice ${current}) con sus hijos: ${children.map(c => `<span class="hl-val">${arr[c]}</span>`).join(' y ')}. ¿Algún hijo es mayor?`,
+            explanation: `Comparamos <span class="hl-val">${arr[current]}</span> (índice ${current}) con sus hijos: ${children.map(c => `<span class="hl-val">${arr[c]}</span>`).join(' y ')}. ¿Algún hijo es ${compWord}?`,
         });
 
-        if (left < heapSize && arr[left] > arr[largest]) largest = left;
-        if (right < heapSize && arr[right] > arr[largest]) largest = right;
+        if (isMax) {
+            if (left < heapSize && arr[left] > arr[best]) best = left;
+            if (right < heapSize && arr[right] > arr[best]) best = right;
+        } else {
+            if (left < heapSize && arr[left] < arr[best]) best = left;
+            if (right < heapSize && arr[right] < arr[best]) best = right;
+        }
 
-        if (largest === current) {
+        if (best === current) {
             steps.push({
                 phase,
                 phaseTitle: phase === 2 ? 'Fase 2 — Heapify (sift-down)' : 'Fase 3 — Reajuste (sift-down)',
@@ -186,7 +202,7 @@ function siftDown(arr, heapSize, idx, steps, phase, sortedCount) {
                 sortedCount,
                 highlight: [current],
                 swapping: [],
-                explanation: `<span class="hl-val">${arr[current]}</span> ya es mayor o igual que sus hijos. <span class="hl-done">No se necesita swap.</span>`,
+                explanation: `<span class="hl-val">${arr[current]}</span> ya es ${compPhrase} que sus hijos. <span class="hl-done">No se necesita swap.</span>`,
             });
             break;
         }
@@ -194,16 +210,16 @@ function siftDown(arr, heapSize, idx, steps, phase, sortedCount) {
         steps.push({
             phase,
             phaseTitle: phase === 2 ? 'Fase 2 — Heapify (swap)' : 'Fase 3 — Reajuste (swap)',
-            phaseDesc: `Intercambiando ${arr[current]} con ${arr[largest]}.`,
+            phaseDesc: `Intercambiando ${arr[current]} con ${arr[best]}.`,
             icon: '🔄',
             array: [...arr],
             sortedCount,
             highlight: [],
-            swapping: [current, largest],
-            explanation: `<span class="hl-val">${arr[largest]}</span> es mayor que <span class="hl-val">${arr[current]}</span> → <span class="hl-swap">swap</span> posiciones ${current} y ${largest}.`,
+            swapping: [current, best],
+            explanation: `<span class="hl-val">${arr[best]}</span> es ${compWord} que <span class="hl-val">${arr[current]}</span> → <span class="hl-swap">swap</span> posiciones ${current} y ${best}.`,
         });
 
-        [arr[current], arr[largest]] = [arr[largest], arr[current]];
+        [arr[current], arr[best]] = [arr[best], arr[current]];
 
         steps.push({
             phase,
@@ -212,12 +228,12 @@ function siftDown(arr, heapSize, idx, steps, phase, sortedCount) {
             icon: '⬇️',
             array: [...arr],
             sortedCount,
-            highlight: [largest],
+            highlight: [best],
             swapping: [],
-            explanation: `Después del swap: <strong>[${arr.slice(0, heapSize).join(', ')}]</strong>. El <span class="hl-val">${arr[largest]}</span> bajó a la posición ${largest}. Seguimos verificando...`,
+            explanation: `Después del swap: <strong>[${arr.slice(0, heapSize).join(', ')}]</strong>. El <span class="hl-val">${arr[best]}</span> bajó a la posición ${best}. Seguimos verificando...`,
         });
 
-        current = largest;
+        current = best;
     }
 }
 
@@ -539,7 +555,7 @@ function startVisualization() {
     }
 
     stopPlaying();
-    steps = generateSteps(arr);
+    steps = generateSteps(arr, heapMode);
     currentStep = 0;
 
     // Build DOM structures once
@@ -577,6 +593,15 @@ DOM.speedSlider.addEventListener('input', updateSpeed);
 
 $$('.preset-chip').forEach(chip => {
     chip.addEventListener('click', () => { DOM.arrayInput.value = chip.dataset.array; });
+});
+
+// Heap mode toggle
+$$('#heapModeToggle .toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        $$('#heapModeToggle .toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        heapMode = btn.dataset.mode;
+    });
 });
 
 DOM.btnInfo.addEventListener('click', () => { DOM.infoModal.classList.add('active'); });

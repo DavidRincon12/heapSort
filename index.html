@@ -57,6 +57,19 @@
                     <p>Ingresa los números separados por comas</p>
                 </div>
             </div>
+            <div class="mode-toggle">
+                <span class="mode-label">Modo:</span>
+                <div class="toggle-group" id="heapModeToggle">
+                    <button class="toggle-btn active" data-mode="max">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+                        Max-Heap <span class="toggle-hint">→ Menor a Mayor</span>
+                    </button>
+                    <button class="toggle-btn" data-mode="min">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        Min-Heap <span class="toggle-hint">→ Mayor a Menor</span>
+                    </button>
+                </div>
+            </div>
             <div class="input-row">
                 <div class="input-wrapper">
                     <input type="text" id="arrayInput" value="4, 10, 3, 5, 1" placeholder="Ej: 4, 10, 3, 5, 1" spellcheck="false">
