@@ -52,8 +52,8 @@ let playTimer = null;
 let speedMs = 1200;
 
 // Cached DOM nodes for the tree and array so we can update in place
-let treeNodes = [];    // { circle, text, indexText, edge? }
-let treeEdges = [];    // { line }
+let treeNodes = [];    // { group, circle, text, indexText }
+let treeEdges = [];    // { line, from, to }
 let arrayCells = [];   // { valueEl, indexEl, cellEl }
 let arraySepEl = null;
 let cachedArrayLen = 0;
@@ -94,11 +94,12 @@ function generateSteps(inputArray) {
     });
 
     for (let size = n - 1; size > 0; size--) {
-        const sortedCount = n - size;
+        const sortedCount = n - size - 1;
+        const vuelta = n - size;
 
         result.push({
             phase: 3,
-            phaseTitle: `Fase 3 — Extracción (Vuelta ${sortedCount + 1})`,
+            phaseTitle: `Fase 3 — Extracción (Vuelta ${vuelta})`,
             phaseDesc: 'Intercambiamos la raíz con el último elemento no ordenado.',
             icon: '🔄',
             array: [...arr],
@@ -116,7 +117,7 @@ function generateSteps(inputArray) {
 
         result.push({
             phase: 3,
-            phaseTitle: `Fase 3 — Extracción (Vuelta ${sortedCount + 1})`,
+            phaseTitle: `Fase 3 — Extracción (Vuelta ${vuelta})`,
             phaseDesc: `El ${arr[size]} está en su posición correcta. Reajustamos el heap.`,
             icon: '✅',
             array: [...arr],
@@ -247,7 +248,7 @@ function buildTreeDOM(n) {
         }
     }
 
-    // Create nodes
+    // Create nodes (wrapped in <g> so we can hide entire groups)
     for (let i = 0; i < n; i++) {
         const g = document.createElementNS(SVG_NS, 'g');
 
@@ -266,7 +267,7 @@ function buildTreeDOM(n) {
         g.appendChild(indexText);
         svg.appendChild(g);
 
-        treeNodes.push({ circle, text, indexText });
+        treeNodes.push({ group: g, circle, text, indexText });
     }
 }
 
@@ -333,11 +334,19 @@ function updateTree(step) {
     const { array, sortedCount, highlight, swapping } = step;
     const n = array.length;
     const sortedStartIdx = n - sortedCount;
+    // Only compute layout for active (non-sorted) nodes
+    const activeCount = sortedStartIdx;
 
     const { positions, nodeRadius } = computeTreeLayout(n);
 
-    // Update edges
+    // Update edges — hide edges that touch sorted nodes
     for (const edge of treeEdges) {
+        const isSortedEdge = edge.from >= activeCount || edge.to >= activeCount;
+        if (isSortedEdge) {
+            edge.line.style.display = 'none';
+            continue;
+        }
+        edge.line.style.display = '';
         const fromPos = positions[edge.from];
         const toPos = positions[edge.to];
         edge.line.setAttribute('x1', fromPos.x);
@@ -351,12 +360,18 @@ function updateTree(step) {
         edge.line.setAttribute('class', isHL ? 'tree-edge highlight' : 'tree-edge');
     }
 
-    // Update nodes
+    // Update nodes — hide sorted nodes entirely
     for (let i = 0; i < n; i++) {
         const node = treeNodes[i];
-        const pos = positions[i];
+        const isSorted = i >= activeCount && sortedCount > 0;
 
-        const isSorted = i >= sortedStartIdx && sortedCount > 0;
+        if (isSorted) {
+            node.group.style.display = 'none';
+            continue;
+        }
+
+        node.group.style.display = '';
+        const pos = positions[i];
         const isHighlight = highlight.includes(i);
         const isSwapping = swapping.includes(i);
         const isRoot = i === 0;
@@ -376,12 +391,11 @@ function updateTree(step) {
         // Classes
         let cls = 'tree-node-circle';
         if (isSwapping) cls += ' swapping';
-        else if (isSorted) cls += ' sorted';
         else if (isHighlight) cls += ' active';
-        else if (isRoot && !isSorted) cls += ' root';
+        else if (isRoot) cls += ' root';
         node.circle.setAttribute('class', cls);
 
-        node.text.setAttribute('class', isSorted ? 'tree-node-text sorted' : 'tree-node-text');
+        node.text.setAttribute('class', 'tree-node-text');
     }
 }
 
